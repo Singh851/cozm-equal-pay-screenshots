@@ -183,7 +183,6 @@ const COUNTRY_DATA = {
     workingDays: 260, maxWeeklyHours: 45, overtimeRate: 1.25,
     nightRate: 1.25, sundayRate: 1.50, holidayRate: 1.50,
     minAnnualLeave: 20, publicHolidays: 9,
-    exchangeRate: { EURCHF: 0.94, source: 'ESTV official rate', date: '2025-01-01' },
     terms: {
       maxDailyHours: '14 hours (incl. breaks)',
       minDailyRest: '11 consecutive hours',
@@ -200,7 +199,7 @@ const COUNTRY_DATA = {
   FR: {
     name: 'France', flag: '\u{1F1EB}\u{1F1F7}', currency: 'EUR',
     legalBasis: 'Code du travail, Art. L.1261-1 to L.1263-2; Directive 96/71/CE transposed',
-    minimumWage: { hourly: 11.65, name: 'SMIC', effectiveFrom: '2024-01-01' },
+    minimumWage: { hourly: 11.88, name: 'SMIC', effectiveFrom: '2024-11-01' },
     agreements: [
       { id: 'fr-btp', name: 'CCN Batiment (Construction)', sector: 'Construction', minHourly: 13.09, region: 'National', effectiveFrom: '2024-01-01', idcc: '1596' },
       { id: 'fr-metallurgy', name: 'CCN Metallurgie (Engineering/Manufacturing)', sector: 'Engineering & Manufacturing', minHourly: 12.80, region: 'National', effectiveFrom: '2024-01-01', idcc: '3248' },
@@ -208,13 +207,12 @@ const COUNTRY_DATA = {
       { id: 'fr-syntec', name: 'CCN Syntec (IT/Consulting)', sector: 'IT & Consulting', minHourly: 14.20, region: 'National', effectiveFrom: '2024-01-01', idcc: '1486' },
       { id: 'fr-transport', name: 'CCN Transports Routiers (Road Transport)', sector: 'Transport', minHourly: 12.45, region: 'National', effectiveFrom: '2024-01-01', idcc: '0016' },
       { id: 'fr-cleaning', name: 'CCN Proprete (Cleaning)', sector: 'Cleaning', minHourly: 12.30, region: 'National', effectiveFrom: '2024-01-01', idcc: '3043' },
-      { id: 'fr-smic', name: 'SMIC (Statutory Minimum)', sector: 'All sectors', minHourly: 11.65, region: 'National', effectiveFrom: '2024-01-01' }
+      { id: 'fr-smic', name: 'SMIC (Statutory Minimum)', sector: 'All sectors', minHourly: 11.88, region: 'National', effectiveFrom: '2024-11-01' }
     ],
     workingDays: 228, maxWeeklyHours: 35, overtimeRate: 1.25,
     nightRate: 1.25, sundayRate: 2.00, holidayRate: 2.00,
     overtime36to43: 1.25, overtime44plus: 1.50,
     minAnnualLeave: 25, publicHolidays: 11,
-    exchangeRate: { GBPEUR: 1.17, source: 'ECB reference rate', date: '2025-01-01' },
     terms: {
       maxDailyHours: '10 hours (derogation up to 12h by agreement)',
       minDailyRest: '11 consecutive hours',
@@ -230,7 +228,7 @@ const COUNTRY_DATA = {
   },
   ES: {
     name: 'Spain', flag: '\u{1F1EA}\u{1F1F8}', currency: 'EUR',
-    legalBasis: 'Ley 45/1999 (transposing Directive 96/71/CE); Estatuto de los Trabajadores',
+    legalBasis: 'Ley 45/1999 as amended by RDL 9/2017 (transposing Directives 96/71/CE and 2014/67/EU); Estatuto de los Trabajadores',
     minimumWage: { hourly: 8.87, name: 'SMI (Salario Minimo Interprofesional)', effectiveFrom: '2024-01-01', annual: 15876 },
     agreements: [
       { id: 'es-construccion', name: 'Convenio General de la Construccion', sector: 'Construction', minHourly: 10.25, region: 'National', effectiveFrom: '2024-01-01' },
@@ -241,11 +239,10 @@ const COUNTRY_DATA = {
       { id: 'es-limpieza', name: 'Convenio Colectivo de Limpieza', sector: 'Cleaning', minHourly: 9.20, region: 'National', effectiveFrom: '2024-01-01' },
       { id: 'es-smi', name: 'SMI (Statutory Minimum)', sector: 'All sectors', minHourly: 8.87, region: 'National', effectiveFrom: '2024-01-01' }
     ],
-    workingDays: 228, maxWeeklyHours: 40, overtimeRate: 1.75,
-    nightRate: 1.25, sundayRate: 1.50, holidayRate: 1.75,
+    workingDays: 228, maxWeeklyHours: 40, overtimeRate: 1.25,
+    nightRate: 1.25, sundayRate: 1.50, holidayRate: 1.50,
     minAnnualLeave: 22, publicHolidays: 14,
     pagas: 2,
-    exchangeRate: { GBPEUR: 1.17, source: 'ECB reference rate', date: '2025-01-01' },
     terms: {
       maxDailyHours: '9 hours (adjustable by agreement)',
       minDailyRest: '12 consecutive hours',
@@ -274,7 +271,7 @@ let state = {
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('loginLogo').src = LOGO_B64;
   document.getElementById('appLogo').src = LOGO_B64;
-  loadSaved();
+  loadSavedFromStorage();
   if (sessionStorage.getItem('cozm_ep_auth') === '1') {
     state.loggedIn = true;
     showApp();
@@ -317,7 +314,7 @@ function showDashboard() {
 }
 
 // ===== SAVED ASSESSMENTS =====
-function loadSaved() {
+function loadSavedFromStorage() {
   try {
     state.saved = JSON.parse(localStorage.getItem('cozm_ep_saved') || '[]');
   } catch(e) { state.saved = []; }
@@ -355,7 +352,7 @@ function renderSavedAssessments() {
             <span class="text-lg">${COUNTRY_DATA[s.country]?.flag || ''}</span>
             <div>
               <span class="font-semibold text-sm text-cozm-ink">${s.id}</span>
-              <span class="text-xs text-cozm-muted ml-2">${s.employee}</span>
+              <span class="text-xs text-cozm-muted ml-2">${esc(s.employee)}</span>
             </div>
           </div>
           <div class="text-right">
@@ -448,7 +445,7 @@ function renderStep() {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label>Assignment Type</label>
-              <select class="input-field" onchange="f('assignmentType',this.value)">
+              <select class="input-field" onchange="setField('assignmentType',this.value)">
                 <option value="posting" ${f.assignmentType==='posting'?'selected':''}>Employee Posting (service provision)</option>
                 <option value="intragroup" ${f.assignmentType==='intragroup'?'selected':''}>Intra-group Transfer</option>
                 <option value="agency" ${f.assignmentType==='agency'?'selected':''}>Temporary Agency Worker</option>
@@ -458,7 +455,7 @@ function renderStep() {
             </div>
             <div>
               <label>Assignment Purpose</label>
-              <select class="input-field" onchange="f('assignmentPurpose',this.value)">
+              <select class="input-field" onchange="setField('assignmentPurpose',this.value)">
                 <option value="service_provision" ${f.assignmentPurpose==='service_provision'?'selected':''}>Provision of Services</option>
                 <option value="project" ${f.assignmentPurpose==='project'?'selected':''}>Project-based Work</option>
                 <option value="training" ${f.assignmentPurpose==='training'?'selected':''}>Training / Knowledge Transfer</option>
@@ -468,15 +465,15 @@ function renderStep() {
             </div>
             <div>
               <label>Start Date</label>
-              <input type="date" class="input-field" value="${f.startDate}" onchange="f('startDate',this.value)">
+              <input type="date" class="input-field" value="${f.startDate}" onchange="setField('startDate',this.value)">
             </div>
             <div>
               <label>End Date</label>
-              <input type="date" class="input-field" value="${f.endDate}" onchange="f('endDate',this.value)">
+              <input type="date" class="input-field" value="${f.endDate}" onchange="setField('endDate',this.value)">
             </div>
             <div class="md:col-span-2">
               <label>Worksite Address / Location</label>
-              <input type="text" class="input-field" value="${f.worksite}" placeholder="e.g. Zurich, Geneva, Paris, Madrid" onchange="f('worksite',this.value)">
+              <input type="text" class="input-field" value="${f.worksite}" placeholder="e.g. Zurich, Geneva, Paris, Madrid" onchange="setField('worksite',this.value)">
             </div>
           </div>
           ${f.assignmentType === 'business_travel' && (f.assignmentPurpose === 'meeting' || f.assignmentPurpose === 'training') ? `
@@ -495,23 +492,23 @@ function renderStep() {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label>Employee Name / Identifier</label>
-              <input type="text" class="input-field" value="${f.employeeName}" placeholder="e.g. J. Smith" onchange="f('employeeName',this.value)">
+              <input type="text" class="input-field" value="${f.employeeName}" placeholder="e.g. J. Smith" onchange="setField('employeeName',this.value)">
             </div>
             <div>
               <label>Job Title</label>
-              <input type="text" class="input-field" value="${f.jobTitle}" placeholder="e.g. Project Engineer" onchange="f('jobTitle',this.value)">
+              <input type="text" class="input-field" value="${f.jobTitle}" placeholder="e.g. Project Engineer" onchange="setField('jobTitle',this.value)">
             </div>
             <div>
               <label>Home Employer</label>
-              <input type="text" class="input-field" value="${f.homeEmployer}" placeholder="e.g. Acme Ltd" onchange="f('homeEmployer',this.value)">
+              <input type="text" class="input-field" value="${f.homeEmployer}" placeholder="e.g. Acme Ltd" onchange="setField('homeEmployer',this.value)">
             </div>
             <div>
               <label>Home Country</label>
-              <input type="text" class="input-field" value="${f.homeCountry}" placeholder="e.g. United Kingdom" onchange="f('homeCountry',this.value)">
+              <input type="text" class="input-field" value="${f.homeCountry}" placeholder="e.g. United Kingdom" onchange="setField('homeCountry',this.value)">
             </div>
             <div>
               <label>Home Payroll Currency</label>
-              <select class="input-field" onchange="f('homeCurrency',this.value)">
+              <select class="input-field" onchange="setField('homeCurrency',this.value)">
                 <option value="EUR" ${f.homeCurrency==='EUR'?'selected':''}>EUR</option>
                 <option value="GBP" ${f.homeCurrency==='GBP'?'selected':''}>GBP</option>
                 <option value="USD" ${f.homeCurrency==='USD'?'selected':''}>USD</option>
@@ -520,7 +517,7 @@ function renderStep() {
             </div>
             <div>
               <label>Grade / Level</label>
-              <select class="input-field" onchange="f('grade',this.value)">
+              <select class="input-field" onchange="setField('grade',this.value)">
                 <option value="entry" ${f.grade==='entry'?'selected':''}>Entry Level</option>
                 <option value="standard" ${f.grade==='standard'?'selected':''}>Standard / Skilled</option>
                 <option value="senior" ${f.grade==='senior'?'selected':''}>Senior / Experienced</option>
@@ -529,7 +526,7 @@ function renderStep() {
             </div>
             <div>
               <label>Years of Relevant Experience</label>
-              <input type="number" class="input-field" value="${f.experience}" min="0" max="50" onchange="f('experience',parseInt(this.value)||0)">
+              <input type="number" class="input-field" value="${f.experience}" min="0" max="50" onchange="setField('experience',parseInt(this.value)||0)">
             </div>
           </div>
         </div>
@@ -544,39 +541,39 @@ function renderStep() {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label>Annual Base Salary (${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.baseSalaryAnnual}" placeholder="e.g. 45000" onchange="f('baseSalaryAnnual',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.baseSalaryAnnual}" placeholder="e.g. 45000" onchange="setField('baseSalaryAnnual',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>Standard Weekly Hours</label>
-              <input type="number" class="input-field" value="${f.homeWeeklyHours}" min="1" max="60" step="0.5" onchange="f('homeWeeklyHours',parseFloat(this.value)||40)">
+              <input type="number" class="input-field" value="${f.homeWeeklyHours}" min="1" max="60" step="0.5" onchange="setField('homeWeeklyHours',parseFloat(this.value)||40)">
             </div>
             <div>
               <label>13th Month Salary (annual, ${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.bonuses13th}" placeholder="0 if none" onchange="f('bonuses13th',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.bonuses13th}" placeholder="0 if none" onchange="setField('bonuses13th',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>14th Month Salary (annual, ${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.bonuses14th}" placeholder="0 if none" onchange="f('bonuses14th',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.bonuses14th}" placeholder="0 if none" onchange="setField('bonuses14th',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>Holiday Pay (annual supplement, ${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.holidayPayRate}" placeholder="0 if included in salary" onchange="f('holidayPayRate',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.holidayPayRate}" placeholder="0 if included in salary" onchange="setField('holidayPayRate',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>Other Allowances (annual, ${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.otherAllowances}" placeholder="Role, seniority supplements" onchange="f('otherAllowances',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.otherAllowances}" placeholder="Role, seniority supplements" onchange="setField('otherAllowances',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>Assignment Allowance (total for period, ${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.assignmentAllowance}" placeholder="0 if none" onchange="f('assignmentAllowance',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.assignmentAllowance}" placeholder="0 if none" onchange="setField('assignmentAllowance',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>of which: Expense Portion (${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.assignmentAllowanceExpensePortion}" placeholder="Documented expense portion" onchange="f('assignmentAllowanceExpensePortion',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.assignmentAllowanceExpensePortion}" placeholder="Documented expense portion" onchange="setField('assignmentAllowanceExpensePortion',parseFloat(this.value)||0)">
             </div>
             <div class="md:col-span-2">
               <label>Expense Reimbursements (excluded, ${f.homeCurrency})</label>
-              <input type="number" class="input-field" value="${f.expenseReimbursements}" placeholder="Travel, accommodation, meals" onchange="f('expenseReimbursements',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.expenseReimbursements}" placeholder="Travel, accommodation, meals" onchange="setField('expenseReimbursements',parseFloat(this.value)||0)">
               <p class="text-xs text-cozm-muted mt-1">Expense reimbursements are never counted towards minimum remuneration.</p>
             </div>
           </div>
@@ -592,7 +589,7 @@ function renderStep() {
           <div class="space-y-2 mb-4">
             ${cd.agreements.map(a => `
               <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:border-cozm-teal transition-colors ${f.agreementId === a.id ? 'border-cozm-teal bg-cozm-soft/30' : 'border-gray-200'}">
-                <input type="radio" name="agreement" value="${a.id}" ${f.agreementId === a.id ? 'checked' : ''} onchange="f('agreementId','${a.id}')" class="mt-1">
+                <input type="radio" name="agreement" value="${a.id}" ${f.agreementId === a.id ? 'checked' : ''} onchange="setField('agreementId','${a.id}')" class="mt-1">
                 <div>
                   <div class="font-semibold text-sm">${a.name}</div>
                   <div class="text-xs text-cozm-muted">${a.sector} &middot; ${a.region} &middot; Min: ${a.minHourly > 0 ? formatCurrency(a.minHourly, cd.currency) + '/hr' : 'No statutory minimum'}</div>
@@ -618,28 +615,28 @@ function renderStep() {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label>Scheduled Hours per Week (host)</label>
-              <input type="number" class="input-field" value="${f.scheduledHoursPerWeek}" min="1" max="60" step="0.5" onchange="f('scheduledHoursPerWeek',parseFloat(this.value)||40)">
+              <input type="number" class="input-field" value="${f.scheduledHoursPerWeek}" min="1" max="60" step="0.5" onchange="setField('scheduledHoursPerWeek',parseFloat(this.value)||40)">
             </div>
             <div>
               <label>Assignment Working Days</label>
-              <input type="number" class="input-field" value="${f.assignmentDays}" min="1" max="365" onchange="f('assignmentDays',parseInt(this.value)||0)">
+              <input type="number" class="input-field" value="${f.assignmentDays}" min="1" max="365" onchange="setField('assignmentDays',parseInt(this.value)||0)">
               <p class="text-xs text-cozm-muted mt-1">Calculated from dates: ${calcDays()}</p>
             </div>
             <div>
               <label>Total Overtime Hours (period)</label>
-              <input type="number" class="input-field" value="${f.overtimeHours}" min="0" step="0.5" onchange="f('overtimeHours',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.overtimeHours}" min="0" step="0.5" onchange="setField('overtimeHours',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>Total Night Hours (period)</label>
-              <input type="number" class="input-field" value="${f.nightHours}" min="0" step="0.5" onchange="f('nightHours',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.nightHours}" min="0" step="0.5" onchange="setField('nightHours',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>Total Sunday Hours (period)</label>
-              <input type="number" class="input-field" value="${f.sundayHours}" min="0" step="0.5" onchange="f('sundayHours',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.sundayHours}" min="0" step="0.5" onchange="setField('sundayHours',parseFloat(this.value)||0)">
             </div>
             <div>
               <label>Total Public Holiday Hours (period)</label>
-              <input type="number" class="input-field" value="${f.publicHolidayHours}" min="0" step="0.5" onchange="f('publicHolidayHours',parseFloat(this.value)||0)">
+              <input type="number" class="input-field" value="${f.publicHolidayHours}" min="0" step="0.5" onchange="setField('publicHolidayHours',parseFloat(this.value)||0)">
             </div>
           </div>
           <div class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-cozm-muted">
@@ -664,12 +661,12 @@ function renderStep() {
               <div class="text-xs space-y-1 text-cozm-fg">
                 <div>${cd.flag} <strong>${cd.name}</strong> - ${f.assignmentType}</div>
                 <div>${f.startDate || '?'} to ${f.endDate || '?'} (${f.assignmentDays || calcDays()} days)</div>
-                <div>Worksite: ${f.worksite || 'Not specified'}</div>
+                <div>Worksite: ${esc(f.worksite) || 'Not specified'}</div>
               </div>
               <h4 class="font-bold text-sm text-cozm-ink mb-2 mt-4">Employee</h4>
               <div class="text-xs space-y-1 text-cozm-fg">
-                <div>${f.employeeName || 'Not specified'} - ${f.jobTitle || 'Not specified'}</div>
-                <div>${f.homeEmployer || '?'}, ${f.homeCountry || '?'}</div>
+                <div>${esc(f.employeeName) || 'Not specified'} - ${esc(f.jobTitle) || 'Not specified'}</div>
+                <div>${esc(f.homeEmployer) || '?'}, ${esc(f.homeCountry) || '?'}</div>
                 <div>Grade: ${f.grade} &middot; ${f.experience} yrs experience</div>
               </div>
             </div>
@@ -703,7 +700,7 @@ function renderStep() {
   }
 }
 
-function f(field, value) {
+function setField(field, value) {
   state.form[field] = value;
 }
 
@@ -718,7 +715,7 @@ function calcDays() {
       if (dow !== 0 && dow !== 6) days++;
       cur.setDate(cur.getDate() + 1);
     }
-    if (!state.form.assignmentDays) state.form.assignmentDays = days;
+    state.form.assignmentDays = days;
     return days + ' working days';
   }
   return 'Enter dates above';
@@ -743,7 +740,20 @@ function prevStep() {
   }
 }
 
+function validateStep() {
+  const f = state.form;
+  switch (state.currentStep) {
+    case 0: if (!f.startDate || !f.endDate) return 'Please enter assignment start and end dates.'; break;
+    case 1: if (!f.employeeName) return 'Please enter the employee name.'; break;
+    case 2: if (!f.baseSalaryAnnual) return 'Please enter the annual base salary.'; break;
+    case 3: if (!f.agreementId) return 'Please select an applicable agreement.'; break;
+  }
+  return null;
+}
+
 function nextStep() {
+  const err = validateStep();
+  if (err) { alert(err); return; }
   if (state.currentStep < STEPS.length - 1) {
     state.currentStep++;
     renderStep();
@@ -841,30 +851,33 @@ function runCalculation() {
   const adjustedHostHourly = hostMinHourly * gradeMultiplier * expMultiplier;
 
   // Calculate host entitlement components
+  // Overtime/night/Sunday/holiday hours are additional to scheduled hours,
+  // so we pay full multiplied rate (base + supplement) for those hours
   const hostBaseForPeriod = adjustedHostHourly * totalScheduledHours;
-  const hostOvertimePay = (f.overtimeHours || 0) * adjustedHostHourly * cd.overtimeRate;
-  const hostNightPay = (f.nightHours || 0) * adjustedHostHourly * cd.nightRate;
-  const hostSundayPay = (f.sundayHours || 0) * adjustedHostHourly * cd.sundayRate;
-  const hostHolidayPay = (f.publicHolidayHours || 0) * adjustedHostHourly * cd.holidayRate;
+  const hostOvertimePay = (f.overtimeHours || 0) * adjustedHostHourly * (cd.overtimeRate - 1);
+  const hostNightPay = (f.nightHours || 0) * adjustedHostHourly * (cd.nightRate - 1);
+  const hostSundayPay = (f.sundayHours || 0) * adjustedHostHourly * (cd.sundayRate - 1);
+  const hostHolidayPay = (f.publicHolidayHours || 0) * adjustedHostHourly * (cd.holidayRate - 1);
 
   // 13th/14th month pro-rating for host
   let host13thPay = 0;
   let host14thPay = 0;
+  const weeklyHrs = f.scheduledHoursPerWeek || cd.maxWeeklyHours;
   if (state.country === 'ES' && cd.pagas) {
     // Spain: 2 pagas extraordinarias pro-rated
     const yearFraction = assignmentDays / cd.workingDays;
-    host13thPay = (adjustedHostHourly * cd.maxWeeklyHours * 52 / 12) * yearFraction;
+    host13thPay = (adjustedHostHourly * weeklyHrs * 52 / 12) * yearFraction;
     host14thPay = host13thPay;
   }
   // France: no statutory 13th month, but some CCNs include it
   if (state.country === 'FR' && (f.agreementId === 'fr-metallurgy' || f.agreementId === 'fr-syntec')) {
     const yearFraction = assignmentDays / cd.workingDays;
-    host13thPay = (adjustedHostHourly * cd.maxWeeklyHours * 52 / 12) * yearFraction;
+    host13thPay = (adjustedHostHourly * weeklyHrs * 52 / 12) * yearFraction;
   }
   // Switzerland: typically in GAV
   if (state.country === 'CH' && (f.agreementId === 'ch-gav-bau' || f.agreementId === 'ch-gav-maler')) {
     const yearFraction = assignmentDays / cd.workingDays;
-    host13thPay = (adjustedHostHourly * cd.maxWeeklyHours * 52 / 12) * yearFraction;
+    host13thPay = (adjustedHostHourly * weeklyHrs * 52 / 12) * yearFraction;
   }
 
   // Holiday pay entitlement
@@ -1105,6 +1118,11 @@ function formatTermKey(key) {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
 }
 
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function formatCurrency(amount, currency) {
   if (amount === undefined || amount === null || amount === '' || isNaN(amount)) return '-';
   const num = parseFloat(amount);
@@ -1117,6 +1135,7 @@ function resetApp() {
   state.currentStep = 0;
   state.country = null;
   state.currentResult = null;
+  loadSavedFromStorage();
   showDashboard();
 }
 
@@ -1199,6 +1218,7 @@ function generatePayrollPDF() {
     ['Total for period', formatCurrency(r.totalHomeForPeriod, r.hostCurrency)],
   ];
   homeComponents.forEach(([label, val]) => {
+    if (y > 275) { doc.addPage(); y = 20; }
     doc.setFont(undefined, label.startsWith('Total') ? 'bold' : 'normal');
     doc.text(label, margin + 2, y);
     doc.text(val, pageW - margin, y, { align: 'right' });
@@ -1227,6 +1247,7 @@ function generatePayrollPDF() {
     ['Total host entitlement', formatCurrency(r.totalHostEntitlement, r.hostCurrency)],
   ];
   hostComponents.forEach(([label, val]) => {
+    if (y > 275) { doc.addPage(); y = 20; }
     doc.setFont(undefined, label.startsWith('Total') ? 'bold' : 'normal');
     doc.text(label, margin + 2, y);
     doc.text(val, pageW - margin, y, { align: 'right' });
@@ -1238,17 +1259,27 @@ function generatePayrollPDF() {
   if (y > 230) { doc.addPage(); y = 20; }
 
   // Uplift Box
-  doc.setFillColor(68, 145, 156);
-  doc.roundedRect(margin, y, contentW, 30, 3, 3, 'F');
-  doc.setFontSize(10);
-  doc.setTextColor(255, 255, 255);
-  doc.text('REQUIRED UPLIFT', margin + contentW / 2, y + 8, { align: 'center' });
-  doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
-  doc.text(`${formatCurrency(r.uplift, r.hostCurrency)}`, margin + contentW / 2, y + 17, { align: 'center' });
-  doc.setFontSize(9);
-  doc.setFont(undefined, 'normal');
-  doc.text(`(${formatCurrency(r.upliftPayrollCurrency, r.homeCurrency)} in payroll currency)`, margin + contentW / 2, y + 24, { align: 'center' });
+  if (r.uplift > 0) {
+    doc.setFillColor(68, 145, 156);
+    doc.roundedRect(margin, y, contentW, 30, 3, 3, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text('REQUIRED UPLIFT', margin + contentW / 2, y + 8, { align: 'center' });
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text(`${formatCurrency(r.uplift, r.hostCurrency)}`, margin + contentW / 2, y + 17, { align: 'center' });
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(`(${formatCurrency(r.upliftPayrollCurrency, r.homeCurrency)} in payroll currency)`, margin + contentW / 2, y + 24, { align: 'center' });
+  } else {
+    doc.setFillColor(45, 134, 89);
+    doc.roundedRect(margin, y, contentW, 20, 3, 3, 'F');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text('NO UPLIFT REQUIRED', margin + contentW / 2, y + 13, { align: 'center' });
+    doc.setFont(undefined, 'normal');
+  }
   y += 38;
 
   // Payslip Instructions
