@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cozm Equal Pay</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        cozm: {
+          teal: '#44919c',
+          dark: '#38767f',
+          soft: '#c7e5e9',
+          ink: '#1d3642',
+          fg: '#283a42',
+          muted: '#5d6f75',
+          danger: '#bd4040',
+          bg: '#f2f5f5',
+          surface: '#ffffff',
+          success: '#2d8659',
+          warn: '#c4880c',
+        }
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f2f5f5; color: #1d3642; margin: 0; }
+  input, select, textarea { font-family: inherit; }
+  .step-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+  .step-dot.active { background: #44919c; color: #fff; }
+  .step-dot.done { background: #2d8659; color: #fff; }
+  .step-dot.pending { background: #c7e5e9; color: #5d6f75; }
+  .step-line { height: 2px; flex: 1; margin: 0 4px; }
+  .step-line.done { background: #2d8659; }
+  .step-line.pending { background: #c7e5e9; }
+  .fade-in { animation: fadeIn 0.3s ease-in; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .input-field { width: 100%; padding: 8px 12px; border: 1px solid #c7e5e9; border-radius: 6px; font-size: 14px; transition: border-color 0.2s; }
+  .input-field:focus { outline: none; border-color: #44919c; box-shadow: 0 0 0 3px rgba(68,145,156,0.15); }
+  .btn-primary { background: #44919c; color: #fff; padding: 10px 24px; border-radius: 6px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #38767f; }
+  .btn-secondary { background: #fff; color: #44919c; padding: 10px 24px; border-radius: 6px; font-weight: 600; font-size: 14px; border: 1px solid #44919c; cursor: pointer; transition: all 0.2s; }
+  .btn-secondary:hover { background: #c7e5e9; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #e2eaec; padding: 24px; }
+  label { font-size: 13px; font-weight: 500; color: #283a42; display: block; margin-bottom: 4px; }
+  .section-title { font-size: 18px; font-weight: 700; color: #1d3642; margin-bottom: 16px; }
+  .result-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2eaec; }
+  .result-row:last-child { border-bottom: none; }
+  .uplift-box { background: linear-gradient(135deg, #44919c 0%, #38767f 100%); color: #fff; border-radius: 10px; padding: 24px; text-align: center; }
+  .comparison-bar { height: 24px; border-radius: 4px; position: relative; overflow: hidden; }
+  @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center bg-cozm-bg">
+  <div class="card w-full max-w-sm text-center fade-in">
+    <img id="loginLogo" alt="The Cozm" class="mx-auto mb-6" style="height:56px;">
+    <h1 class="text-xl font-bold text-cozm-ink mb-1">Equal Pay</h1>
+    <p class="text-sm text-cozm-muted mb-6">Posted worker equal pay assessment</p>
+    <input id="passwordInput" type="password" class="input-field mb-4" placeholder="Enter password" onkeydown="if(event.key==='Enter')attemptLogin()">
+    <div id="loginError" class="text-xs text-cozm-danger mb-3 hidden">Incorrect password</div>
+    <button onclick="attemptLogin()" class="btn-primary w-full">Enter</button>
+    <p class="text-xs text-cozm-muted mt-4">Switzerland &middot; France &middot; Spain</p>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="appScreen" class="hidden min-h-screen">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between no-print">
+    <div class="flex items-center gap-3">
+      <img id="appLogo" alt="The Cozm" style="height:32px;">
+      <span class="text-base font-bold text-cozm-ink">Equal Pay</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="resetApp()" class="text-sm text-cozm-muted hover:text-cozm-teal">New Assessment</button>
+      <button onclick="logout()" class="text-sm text-cozm-danger">Logout</button>
+    </div>
+  </header>
+
+  <!-- Dashboard -->
+  <div id="dashboardView" class="max-w-4xl mx-auto px-4 py-8 fade-in">
+    <h2 class="text-2xl font-bold text-cozm-ink mb-2">Equal Pay Assessments</h2>
+    <p class="text-sm text-cozm-muted mb-6">Compare home remuneration with host-country entitlements for posted workers</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <button onclick="startNewAssessment('CH')" class="card hover:border-cozm-teal transition-colors text-left group">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-2xl">&#127464;&#127469;</span>
+          <span class="font-bold text-cozm-ink group-hover:text-cozm-teal">Switzerland</span>
+        </div>
+        <p class="text-xs text-cozm-muted">EntsG, GAVs, cantonal minimums</p>
+      </button>
+      <button onclick="startNewAssessment('FR')" class="card hover:border-cozm-teal transition-colors text-left group">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-2xl">&#127467;&#127479;</span>
+          <span class="font-bold text-cozm-ink group-hover:text-cozm-teal">France</span>
+        </div>
+        <p class="text-xs text-cozm-muted">Code du travail, SMIC, CCNs</p>
+      </button>
+      <button onclick="startNewAssessment('ES')" class="card hover:border-cozm-teal transition-colors text-left group">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-2xl">&#127466;&#127480;</span>
+          <span class="font-bold text-cozm-ink group-hover:text-cozm-teal">Spain</span>
+        </div>
+        <p class="text-xs text-cozm-muted">Ley 45/1999, SMI, convenios</p>
+      </button>
+    </div>
+    <!-- Saved assessments -->
+    <div id="savedAssessments"></div>
+  </div>
+
+  <!-- Wizard -->
+  <div id="wizardView" class="hidden max-w-3xl mx-auto px-4 py-6 fade-in">
+    <!-- Step indicator -->
+    <div class="flex items-center mb-8 no-print" id="stepIndicator"></div>
+
+    <!-- Step panels -->
+    <div id="stepPanels"></div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between mt-6 no-print">
+      <button id="btnPrev" onclick="prevStep()" class="btn-secondary">Back</button>
+      <button id="btnNext" onclick="nextStep()" class="btn-primary">Continue</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsView" class="hidden max-w-4xl mx-auto px-4 py-6 fade-in">
+    <div id="resultsContent"></div>
+    <div class="flex gap-3 mt-6 no-print">
+      <button onclick="generatePayrollPDF()" class="btn-primary">Download Payroll Instructions (PDF)</button>
+      <button onclick="generateLetterPDF()" class="btn-primary">Download Assignment Letter (PDF)</button>
+      <button onclick="showDashboard()" class="btn-secondary">Back to Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const SITE_PASSWORD = 'cozm2025';
+const LOGO_B64 = 'data:image/png;base64,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';
+
+const STEPS = [
+  { id: 'country', title: 'Country & Assignment' },
+  { id: 'employee', title: 'Employee & Employer' },
+  { id: 'homerem', title: 'Home Remuneration' },
+  { id: 'hostrules', title: 'Host Country Rules' },
+  { id: 'worktime', title: 'Working Time' },
+  { id: 'review', title: 'Review & Calculate' }
+];
+
+// ===== REFERENCE DATA =====
+const COUNTRY_DATA = {
+  CH: {
+    name: 'Switzerland', flag: '\u{1F1E8}\u{1F1ED}', currency: 'CHF',
+    legalBasis: 'Bundesgesetz uber die Entsendung von Arbeitnehmerinnen (EntsG, SR 823.20)',
+    minimumWage: null,
+    agreements: [
+      { id: 'ch-gav-bau', name: 'GAV Bauhauptgewerbe (Construction)', sector: 'Construction', minHourly: 28.35, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'ch-gav-gastro', name: 'L-GAV Gastgewerbe (Hospitality)', sector: 'Hospitality', minHourly: 21.09, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'ch-gav-reinigung', name: 'GAV Reinigungsbranche (Cleaning)', sector: 'Cleaning', minHourly: 19.85, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'ch-gav-maler', name: 'GAV Maler- und Gipsergewerbe (Painting & Plastering)', sector: 'Painting & Plastering', minHourly: 25.50, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'ch-gav-security', name: 'GAV Sicherheitsdienstleistungen (Security)', sector: 'Security Services', minHourly: 22.40, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'ch-cantonal-ge', name: 'Geneva Cantonal Minimum Wage', sector: 'All sectors', minHourly: 24.32, region: 'Geneva', effectiveFrom: '2024-01-01' },
+      { id: 'ch-cantonal-ne', name: 'Neuchatel Cantonal Minimum Wage', sector: 'All sectors', minHourly: 21.09, region: 'Neuchatel', effectiveFrom: '2024-01-01' },
+      { id: 'ch-cantonal-ju', name: 'Jura Cantonal Minimum Wage', sector: 'All sectors', minHourly: 21.40, region: 'Jura', effectiveFrom: '2024-01-01' },
+      { id: 'ch-cantonal-bs', name: 'Basel-Stadt Cantonal Minimum Wage', sector: 'All sectors', minHourly: 21.70, region: 'Basel-Stadt', effectiveFrom: '2024-01-01' },
+      { id: 'ch-other', name: 'Other / Not covered by GAV', sector: 'Other', minHourly: 0, region: 'National', effectiveFrom: '2024-01-01' }
+    ],
+    workingDays: 260, maxWeeklyHours: 45, overtimeRate: 1.25,
+    nightRate: 1.25, sundayRate: 1.50, holidayRate: 1.50,
+    minAnnualLeave: 20, publicHolidays: 9,
+    exchangeRate: { EURCHF: 0.94, source: 'ESTV official rate', date: '2025-01-01' },
+    terms: {
+      maxDailyHours: '14 hours (incl. breaks)',
+      minDailyRest: '11 consecutive hours',
+      minWeeklyRest: '24 consecutive hours (Sunday)',
+      breaks: '15 min (5.5h), 30 min (7h), 60 min (9h)',
+      maternityLeave: '14 weeks at 80% (EO)',
+      paternityLeave: '2 weeks at 80% (EO)',
+      sickLeave: 'Continued payment per Berner/Basler/Zurcher scale',
+      nightWork: '25% supplement, 23:00-06:00',
+      sundayWork: '50% supplement, prior authorisation required',
+      equalTreatment: 'Federal Act on Gender Equality (GlG)'
+    }
+  },
+  FR: {
+    name: 'France', flag: '\u{1F1EB}\u{1F1F7}', currency: 'EUR',
+    legalBasis: 'Code du travail, Art. L.1261-1 to L.1263-2; Directive 96/71/CE transposed',
+    minimumWage: { hourly: 11.65, name: 'SMIC', effectiveFrom: '2024-01-01' },
+    agreements: [
+      { id: 'fr-btp', name: 'CCN Batiment (Construction)', sector: 'Construction', minHourly: 13.09, region: 'National', effectiveFrom: '2024-01-01', idcc: '1596' },
+      { id: 'fr-metallurgy', name: 'CCN Metallurgie (Engineering/Manufacturing)', sector: 'Engineering & Manufacturing', minHourly: 12.80, region: 'National', effectiveFrom: '2024-01-01', idcc: '3248' },
+      { id: 'fr-hotels', name: 'CCN Hotels-Cafes-Restaurants (Hospitality)', sector: 'Hospitality', minHourly: 12.15, region: 'National', effectiveFrom: '2024-01-01', idcc: '1979' },
+      { id: 'fr-syntec', name: 'CCN Syntec (IT/Consulting)', sector: 'IT & Consulting', minHourly: 14.20, region: 'National', effectiveFrom: '2024-01-01', idcc: '1486' },
+      { id: 'fr-transport', name: 'CCN Transports Routiers (Road Transport)', sector: 'Transport', minHourly: 12.45, region: 'National', effectiveFrom: '2024-01-01', idcc: '0016' },
+      { id: 'fr-cleaning', name: 'CCN Proprete (Cleaning)', sector: 'Cleaning', minHourly: 12.30, region: 'National', effectiveFrom: '2024-01-01', idcc: '3043' },
+      { id: 'fr-smic', name: 'SMIC (Statutory Minimum)', sector: 'All sectors', minHourly: 11.65, region: 'National', effectiveFrom: '2024-01-01' }
+    ],
+    workingDays: 228, maxWeeklyHours: 35, overtimeRate: 1.25,
+    nightRate: 1.25, sundayRate: 2.00, holidayRate: 2.00,
+    overtime36to43: 1.25, overtime44plus: 1.50,
+    minAnnualLeave: 25, publicHolidays: 11,
+    exchangeRate: { GBPEUR: 1.17, source: 'ECB reference rate', date: '2025-01-01' },
+    terms: {
+      maxDailyHours: '10 hours (derogation up to 12h by agreement)',
+      minDailyRest: '11 consecutive hours',
+      minWeeklyRest: '35 consecutive hours (24h + 11h daily rest)',
+      breaks: '20 minutes per 6 hours worked',
+      maternityLeave: '16 weeks (6 pre + 10 post)',
+      paternityLeave: '25 calendar days',
+      sickLeave: '90% of gross for 30 days, then 66.7% (with 1 year seniority)',
+      nightWork: '25% minimum supplement, 21:00-06:00',
+      sundayWork: '100% supplement or compensatory rest',
+      equalTreatment: 'Code du travail, Art. L.1132-1 et seq.'
+    }
+  },
+  ES: {
+    name: 'Spain', flag: '\u{1F1EA}\u{1F1F8}', currency: 'EUR',
+    legalBasis: 'Ley 45/1999 (transposing Directive 96/71/CE); Estatuto de los Trabajadores',
+    minimumWage: { hourly: 8.87, name: 'SMI (Salario Minimo Interprofesional)', effectiveFrom: '2024-01-01', annual: 15876 },
+    agreements: [
+      { id: 'es-construccion', name: 'Convenio General de la Construccion', sector: 'Construction', minHourly: 10.25, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'es-metal-madrid', name: 'Convenio Colectivo del Metal de Madrid', sector: 'Metal & Engineering', minHourly: 10.80, region: 'Madrid', effectiveFrom: '2024-01-01' },
+      { id: 'es-hosteleria', name: 'Convenio Colectivo de Hosteleria', sector: 'Hospitality', minHourly: 9.50, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'es-quimica', name: 'Convenio General de la Industria Quimica', sector: 'Chemical Industry', minHourly: 11.15, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'es-consulting', name: 'Convenio de Empresas de Consultoria', sector: 'Consulting & IT', minHourly: 10.40, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'es-limpieza', name: 'Convenio Colectivo de Limpieza', sector: 'Cleaning', minHourly: 9.20, region: 'National', effectiveFrom: '2024-01-01' },
+      { id: 'es-smi', name: 'SMI (Statutory Minimum)', sector: 'All sectors', minHourly: 8.87, region: 'National', effectiveFrom: '2024-01-01' }
+    ],
+    workingDays: 228, maxWeeklyHours: 40, overtimeRate: 1.75,
+    nightRate: 1.25, sundayRate: 1.50, holidayRate: 1.75,
+    minAnnualLeave: 22, publicHolidays: 14,
+    pagas: 2,
+    exchangeRate: { GBPEUR: 1.17, source: 'ECB reference rate', date: '2025-01-01' },
+    terms: {
+      maxDailyHours: '9 hours (adjustable by agreement)',
+      minDailyRest: '12 consecutive hours',
+      minWeeklyRest: '36 consecutive hours (day and a half, usually Saturday afternoon + Sunday)',
+      breaks: '15 minutes per 6 hours worked (30 min for under-18s)',
+      maternityLeave: '16 weeks (6 mandatory post-birth)',
+      paternityLeave: '16 weeks',
+      sickLeave: 'Day 4-20: 60% of base; Day 21+: 75% of base',
+      nightWork: 'Minimum supplement per agreement, 22:00-06:00',
+      sundayWork: 'Supplement per applicable convenio',
+      equalTreatment: 'Ley Organica 3/2007, Estatuto de los Trabajadores Art. 28'
+    }
+  }
+};
+
+// ===== APP STATE =====
+let state = {
+  loggedIn: false,
+  currentStep: 0,
+  country: null,
+  saved: [],
+  form: {}
+};
+
+// ===== INITIALISATION =====
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loginLogo').src = LOGO_B64;
+  document.getElementById('appLogo').src = LOGO_B64;
+  loadSaved();
+  if (sessionStorage.getItem('cozm_ep_auth') === '1') {
+    state.loggedIn = true;
+    showApp();
+  }
+});
+
+function attemptLogin() {
+  const pw = document.getElementById('passwordInput').value;
+  if (pw === SITE_PASSWORD) {
+    state.loggedIn = true;
+    sessionStorage.setItem('cozm_ep_auth', '1');
+    showApp();
+  } else {
+    document.getElementById('loginError').classList.remove('hidden');
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('cozm_ep_auth');
+  state.loggedIn = false;
+  document.getElementById('appScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('loginError').classList.add('hidden');
+}
+
+function showApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.remove('hidden');
+  showDashboard();
+}
+
+function showDashboard() {
+  document.getElementById('dashboardView').classList.remove('hidden');
+  document.getElementById('wizardView').classList.add('hidden');
+  document.getElementById('resultsView').classList.add('hidden');
+  renderSavedAssessments();
+}
+
+// ===== SAVED ASSESSMENTS =====
+function loadSaved() {
+  try {
+    state.saved = JSON.parse(localStorage.getItem('cozm_ep_saved') || '[]');
+  } catch(e) { state.saved = []; }
+}
+
+function saveCurrent(result) {
+  const entry = {
+    id: 'EP-' + Date.now().toString(36).toUpperCase(),
+    date: new Date().toISOString(),
+    country: state.country,
+    employee: state.form.employeeName || 'Unnamed',
+    employer: state.form.homeEmployer || '',
+    uplift: result.uplift,
+    currency: COUNTRY_DATA[state.country].currency,
+    form: { ...state.form },
+    result: result
+  };
+  state.saved.unshift(entry);
+  localStorage.setItem('cozm_ep_saved', JSON.stringify(state.saved));
+  return entry;
+}
+
+function renderSavedAssessments() {
+  const container = document.getElementById('savedAssessments');
+  if (state.saved.length === 0) {
+    container.innerHTML = '<p class="text-sm text-cozm-muted">No saved assessments yet. Select a country above to begin.</p>';
+    return;
+  }
+  container.innerHTML = `
+    <h3 class="text-lg font-bold text-cozm-ink mb-4">Recent Assessments</h3>
+    <div class="space-y-2">
+      ${state.saved.slice(0, 10).map(s => `
+        <div class="card flex items-center justify-between cursor-pointer hover:border-cozm-teal transition-colors" onclick="loadSaved('${s.id}')">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">${COUNTRY_DATA[s.country]?.flag || ''}</span>
+            <div>
+              <span class="font-semibold text-sm text-cozm-ink">${s.id}</span>
+              <span class="text-xs text-cozm-muted ml-2">${s.employee}</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-bold ${s.uplift > 0 ? 'text-cozm-danger' : 'text-cozm-success'}">${s.uplift > 0 ? '+' : ''}${formatCurrency(s.uplift, s.currency)} uplift</div>
+            <div class="text-xs text-cozm-muted">${new Date(s.date).toLocaleDateString('en-GB')}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function loadSaved(id) {
+  const entry = state.saved.find(s => s.id === id);
+  if (!entry) return;
+  state.country = entry.country;
+  state.form = { ...entry.form };
+  showResults(entry.result);
+}
+
+// ===== WIZARD =====
+function startNewAssessment(country) {
+  state.country = country;
+  state.currentStep = 0;
+  state.form = {
+    country: country,
+    assignmentType: 'posting',
+    assignmentPurpose: 'service_provision',
+    startDate: '',
+    endDate: '',
+    worksite: '',
+    employeeName: '',
+    jobTitle: '',
+    homeEmployer: '',
+    homeCountry: '',
+    homeCurrency: 'EUR',
+    baseSalaryAnnual: '',
+    baseSalaryHourly: '',
+    homeWeeklyHours: 40,
+    bonuses13th: '',
+    bonuses14th: '',
+    holidayPayRate: '',
+    otherAllowances: '',
+    expenseReimbursements: '',
+    assignmentAllowance: '',
+    assignmentAllowanceExpensePortion: '',
+    agreementId: '',
+    grade: 'standard',
+    experience: 0,
+    scheduledHoursPerWeek: 40,
+    overtimeHours: 0,
+    nightHours: 0,
+    sundayHours: 0,
+    publicHolidayHours: 0,
+    assignmentDays: 0
+  };
+  document.getElementById('dashboardView').classList.add('hidden');
+  document.getElementById('resultsView').classList.add('hidden');
+  document.getElementById('wizardView').classList.remove('hidden');
+  renderStep();
+}
+
+function renderStepIndicator() {
+  const container = document.getElementById('stepIndicator');
+  let html = '';
+  STEPS.forEach((s, i) => {
+    const cls = i < state.currentStep ? 'done' : i === state.currentStep ? 'active' : 'pending';
+    html += `<div class="step-dot ${cls}">${i < state.currentStep ? '&#10003;' : i + 1}</div>`;
+    if (i < STEPS.length - 1) {
+      html += `<div class="step-line ${i < state.currentStep ? 'done' : 'pending'}"></div>`;
+    }
+  });
+  container.innerHTML = html;
+  document.getElementById('btnPrev').style.visibility = state.currentStep === 0 ? 'hidden' : 'visible';
+  document.getElementById('btnNext').textContent = state.currentStep === STEPS.length - 1 ? 'Calculate' : 'Continue';
+}
+
+function renderStep() {
+  renderStepIndicator();
+  const panel = document.getElementById('stepPanels');
+  const cd = COUNTRY_DATA[state.country];
+  const f = state.form;
+
+  switch (state.currentStep) {
+    case 0: // Country & Assignment
+      panel.innerHTML = `
+        <div class="card fade-in">
+          <div class="section-title">${cd.flag} ${cd.name} - Assignment Details</div>
+          <p class="text-xs text-cozm-muted mb-4">Legal basis: ${cd.legalBasis}</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label>Assignment Type</label>
+              <select class="input-field" onchange="f('assignmentType',this.value)">
+                <option value="posting" ${f.assignmentType==='posting'?'selected':''}>Employee Posting (service provision)</option>
+                <option value="intragroup" ${f.assignmentType==='intragroup'?'selected':''}>Intra-group Transfer</option>
+                <option value="agency" ${f.assignmentType==='agency'?'selected':''}>Temporary Agency Worker</option>
+                <option value="business_travel" ${f.assignmentType==='business_travel'?'selected':''}>Business Travel</option>
+                <option value="remote_work" ${f.assignmentType==='remote_work'?'selected':''}>Remote Work from Host Country</option>
+              </select>
+            </div>
+            <div>
+              <label>Assignment Purpose</label>
+              <select class="input-field" onchange="f('assignmentPurpose',this.value)">
+                <option value="service_provision" ${f.assignmentPurpose==='service_provision'?'selected':''}>Provision of Services</option>
+                <option value="project" ${f.assignmentPurpose==='project'?'selected':''}>Project-based Work</option>
+                <option value="training" ${f.assignmentPurpose==='training'?'selected':''}>Training / Knowledge Transfer</option>
+                <option value="meeting" ${f.assignmentPurpose==='meeting'?'selected':''}>Meetings / Conferences</option>
+                <option value="client_site" ${f.assignmentPurpose==='client_site'?'selected':''}>Client Site Work</option>
+              </select>
+            </div>
+            <div>
+              <label>Start Date</label>
+              <input type="date" class="input-field" value="${f.startDate}" onchange="f('startDate',this.value)">
+            </div>
+            <div>
+              <label>End Date</label>
+              <input type="date" class="input-field" value="${f.endDate}" onchange="f('endDate',this.value)">
+            </div>
+            <div class="md:col-span-2">
+              <label>Worksite Address / Location</label>
+              <input type="text" class="input-field" value="${f.worksite}" placeholder="e.g. Zurich, Geneva, Paris, Madrid" onchange="f('worksite',this.value)">
+            </div>
+          </div>
+          ${f.assignmentType === 'business_travel' && (f.assignmentPurpose === 'meeting' || f.assignmentPurpose === 'training') ? `
+            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+              <strong>Note:</strong> Business travel for meetings or training may not trigger equal pay comparison obligations depending on whether productive services are performed. The assessment will determine applicability.
+            </div>
+          ` : ''}
+        </div>
+      `;
+      break;
+
+    case 1: // Employee & Employer
+      panel.innerHTML = `
+        <div class="card fade-in">
+          <div class="section-title">Employee & Employer Details</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label>Employee Name / Identifier</label>
+              <input type="text" class="input-field" value="${f.employeeName}" placeholder="e.g. J. Smith" onchange="f('employeeName',this.value)">
+            </div>
+            <div>
+              <label>Job Title</label>
+              <input type="text" class="input-field" value="${f.jobTitle}" placeholder="e.g. Project Engineer" onchange="f('jobTitle',this.value)">
+            </div>
+            <div>
+              <label>Home Employer</label>
+              <input type="text" class="input-field" value="${f.homeEmployer}" placeholder="e.g. Acme Ltd" onchange="f('homeEmployer',this.value)">
+            </div>
+            <div>
+              <label>Home Country</label>
+              <input type="text" class="input-field" value="${f.homeCountry}" placeholder="e.g. United Kingdom" onchange="f('homeCountry',this.value)">
+            </div>
+            <div>
+              <label>Home Payroll Currency</label>
+              <select class="input-field" onchange="f('homeCurrency',this.value)">
+                <option value="EUR" ${f.homeCurrency==='EUR'?'selected':''}>EUR</option>
+                <option value="GBP" ${f.homeCurrency==='GBP'?'selected':''}>GBP</option>
+                <option value="USD" ${f.homeCurrency==='USD'?'selected':''}>USD</option>
+                <option value="CHF" ${f.homeCurrency==='CHF'?'selected':''}>CHF</option>
+              </select>
+            </div>
+            <div>
+              <label>Grade / Level</label>
+              <select class="input-field" onchange="f('grade',this.value)">
+                <option value="entry" ${f.grade==='entry'?'selected':''}>Entry Level</option>
+                <option value="standard" ${f.grade==='standard'?'selected':''}>Standard / Skilled</option>
+                <option value="senior" ${f.grade==='senior'?'selected':''}>Senior / Experienced</option>
+                <option value="manager" ${f.grade==='manager'?'selected':''}>Manager / Supervisor</option>
+              </select>
+            </div>
+            <div>
+              <label>Years of Relevant Experience</label>
+              <input type="number" class="input-field" value="${f.experience}" min="0" max="50" onchange="f('experience',parseInt(this.value)||0)">
+            </div>
+          </div>
+        </div>
+      `;
+      break;
+
+    case 2: // Home Remuneration
+      panel.innerHTML = `
+        <div class="card fade-in">
+          <div class="section-title">Home Remuneration</div>
+          <p class="text-xs text-cozm-muted mb-4">Enter annual amounts in ${f.homeCurrency}. Expense reimbursements are excluded from the comparison.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label>Annual Base Salary (${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.baseSalaryAnnual}" placeholder="e.g. 45000" onchange="f('baseSalaryAnnual',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>Standard Weekly Hours</label>
+              <input type="number" class="input-field" value="${f.homeWeeklyHours}" min="1" max="60" step="0.5" onchange="f('homeWeeklyHours',parseFloat(this.value)||40)">
+            </div>
+            <div>
+              <label>13th Month Salary (annual, ${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.bonuses13th}" placeholder="0 if none" onchange="f('bonuses13th',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>14th Month Salary (annual, ${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.bonuses14th}" placeholder="0 if none" onchange="f('bonuses14th',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>Holiday Pay (annual supplement, ${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.holidayPayRate}" placeholder="0 if included in salary" onchange="f('holidayPayRate',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>Other Allowances (annual, ${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.otherAllowances}" placeholder="Role, seniority supplements" onchange="f('otherAllowances',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>Assignment Allowance (total for period, ${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.assignmentAllowance}" placeholder="0 if none" onchange="f('assignmentAllowance',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>of which: Expense Portion (${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.assignmentAllowanceExpensePortion}" placeholder="Documented expense portion" onchange="f('assignmentAllowanceExpensePortion',parseFloat(this.value)||0)">
+            </div>
+            <div class="md:col-span-2">
+              <label>Expense Reimbursements (excluded, ${f.homeCurrency})</label>
+              <input type="number" class="input-field" value="${f.expenseReimbursements}" placeholder="Travel, accommodation, meals" onchange="f('expenseReimbursements',parseFloat(this.value)||0)">
+              <p class="text-xs text-cozm-muted mt-1">Expense reimbursements are never counted towards minimum remuneration.</p>
+            </div>
+          </div>
+        </div>
+      `;
+      break;
+
+    case 3: // Host Country Rules
+      panel.innerHTML = `
+        <div class="card fade-in">
+          <div class="section-title">${cd.flag} Host Country: Applicable Agreement</div>
+          <p class="text-xs text-cozm-muted mb-4">Select the applicable collective agreement or statutory minimum for the assignment.</p>
+          <div class="space-y-2 mb-4">
+            ${cd.agreements.map(a => `
+              <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:border-cozm-teal transition-colors ${f.agreementId === a.id ? 'border-cozm-teal bg-cozm-soft/30' : 'border-gray-200'}">
+                <input type="radio" name="agreement" value="${a.id}" ${f.agreementId === a.id ? 'checked' : ''} onchange="f('agreementId','${a.id}')" class="mt-1">
+                <div>
+                  <div class="font-semibold text-sm">${a.name}</div>
+                  <div class="text-xs text-cozm-muted">${a.sector} &middot; ${a.region} &middot; Min: ${a.minHourly > 0 ? formatCurrency(a.minHourly, cd.currency) + '/hr' : 'No statutory minimum'}</div>
+                  <div class="text-xs text-cozm-muted">Effective: ${a.effectiveFrom}</div>
+                </div>
+              </label>
+            `).join('')}
+          </div>
+          ${cd.minimumWage ? `
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+              <strong>Statutory minimum:</strong> ${cd.minimumWage.name} = ${formatCurrency(cd.minimumWage.hourly, cd.currency)}/hr (from ${cd.minimumWage.effectiveFrom})
+            </div>
+          ` : ''}
+        </div>
+      `;
+      break;
+
+    case 4: // Working Time
+      panel.innerHTML = `
+        <div class="card fade-in">
+          <div class="section-title">Working Time & Schedule</div>
+          <p class="text-xs text-cozm-muted mb-4">Enter hours for the entire assignment period.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label>Scheduled Hours per Week (host)</label>
+              <input type="number" class="input-field" value="${f.scheduledHoursPerWeek}" min="1" max="60" step="0.5" onchange="f('scheduledHoursPerWeek',parseFloat(this.value)||40)">
+            </div>
+            <div>
+              <label>Assignment Working Days</label>
+              <input type="number" class="input-field" value="${f.assignmentDays}" min="1" max="365" onchange="f('assignmentDays',parseInt(this.value)||0)">
+              <p class="text-xs text-cozm-muted mt-1">Calculated from dates: ${calcDays()}</p>
+            </div>
+            <div>
+              <label>Total Overtime Hours (period)</label>
+              <input type="number" class="input-field" value="${f.overtimeHours}" min="0" step="0.5" onchange="f('overtimeHours',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>Total Night Hours (period)</label>
+              <input type="number" class="input-field" value="${f.nightHours}" min="0" step="0.5" onchange="f('nightHours',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>Total Sunday Hours (period)</label>
+              <input type="number" class="input-field" value="${f.sundayHours}" min="0" step="0.5" onchange="f('sundayHours',parseFloat(this.value)||0)">
+            </div>
+            <div>
+              <label>Total Public Holiday Hours (period)</label>
+              <input type="number" class="input-field" value="${f.publicHolidayHours}" min="0" step="0.5" onchange="f('publicHolidayHours',parseFloat(this.value)||0)">
+            </div>
+          </div>
+          <div class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-cozm-muted">
+            <strong>${cd.name} working time rules:</strong> Max ${cd.maxWeeklyHours}h/week &middot;
+            OT: ${((cd.overtimeRate - 1) * 100).toFixed(0)}% &middot;
+            Night: ${((cd.nightRate - 1) * 100).toFixed(0)}% &middot;
+            Sunday: ${((cd.sundayRate - 1) * 100).toFixed(0)}% &middot;
+            Public holiday: ${((cd.holidayRate - 1) * 100).toFixed(0)}%
+          </div>
+        </div>
+      `;
+      break;
+
+    case 5: // Review
+      const preview = calculatePreview();
+      panel.innerHTML = `
+        <div class="card fade-in">
+          <div class="section-title">Review & Calculate</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 class="font-bold text-sm text-cozm-ink mb-2">Assignment</h4>
+              <div class="text-xs space-y-1 text-cozm-fg">
+                <div>${cd.flag} <strong>${cd.name}</strong> - ${f.assignmentType}</div>
+                <div>${f.startDate || '?'} to ${f.endDate || '?'} (${f.assignmentDays || calcDays()} days)</div>
+                <div>Worksite: ${f.worksite || 'Not specified'}</div>
+              </div>
+              <h4 class="font-bold text-sm text-cozm-ink mb-2 mt-4">Employee</h4>
+              <div class="text-xs space-y-1 text-cozm-fg">
+                <div>${f.employeeName || 'Not specified'} - ${f.jobTitle || 'Not specified'}</div>
+                <div>${f.homeEmployer || '?'}, ${f.homeCountry || '?'}</div>
+                <div>Grade: ${f.grade} &middot; ${f.experience} yrs experience</div>
+              </div>
+            </div>
+            <div>
+              <h4 class="font-bold text-sm text-cozm-ink mb-2">Home Remuneration</h4>
+              <div class="text-xs space-y-1 text-cozm-fg">
+                <div>Base salary: ${formatCurrency(f.baseSalaryAnnual, f.homeCurrency)}/yr</div>
+                <div>13th: ${formatCurrency(f.bonuses13th, f.homeCurrency)} &middot; 14th: ${formatCurrency(f.bonuses14th, f.homeCurrency)}</div>
+                <div>Holiday pay: ${formatCurrency(f.holidayPayRate, f.homeCurrency)}</div>
+                <div>Other allowances: ${formatCurrency(f.otherAllowances, f.homeCurrency)}</div>
+                <div>Assignment allowance (rem. portion): ${formatCurrency((f.assignmentAllowance || 0) - (f.assignmentAllowanceExpensePortion || 0), f.homeCurrency)}</div>
+                <div class="text-cozm-muted">Expenses excluded: ${formatCurrency(f.expenseReimbursements, f.homeCurrency)}</div>
+              </div>
+              <h4 class="font-bold text-sm text-cozm-ink mb-2 mt-4">Host Entitlement</h4>
+              <div class="text-xs space-y-1 text-cozm-fg">
+                <div>Agreement: ${getAgreementName()}</div>
+                <div>Min hourly: ${formatCurrency(getAgreementRate(), cd.currency)}/hr</div>
+                <div>Hours/week: ${f.scheduledHoursPerWeek} &middot; OT: ${f.overtimeHours}h &middot; Night: ${f.nightHours}h</div>
+              </div>
+            </div>
+          </div>
+          ${preview.warnings.length > 0 ? `
+            <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-sm font-semibold text-yellow-800 mb-1">Warnings</p>
+              ${preview.warnings.map(w => `<p class="text-xs text-yellow-700">&bull; ${w}</p>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+      break;
+  }
+}
+
+function f(field, value) {
+  state.form[field] = value;
+}
+
+function calcDays() {
+  if (state.form.startDate && state.form.endDate) {
+    const start = new Date(state.form.startDate);
+    const end = new Date(state.form.endDate);
+    let days = 0;
+    const cur = new Date(start);
+    while (cur <= end) {
+      const dow = cur.getDay();
+      if (dow !== 0 && dow !== 6) days++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (!state.form.assignmentDays) state.form.assignmentDays = days;
+    return days + ' working days';
+  }
+  return 'Enter dates above';
+}
+
+function getAgreementName() {
+  const cd = COUNTRY_DATA[state.country];
+  const a = cd.agreements.find(a => a.id === state.form.agreementId);
+  return a ? a.name : 'Not selected';
+}
+
+function getAgreementRate() {
+  const cd = COUNTRY_DATA[state.country];
+  const a = cd.agreements.find(a => a.id === state.form.agreementId);
+  return a ? a.minHourly : 0;
+}
+
+function prevStep() {
+  if (state.currentStep > 0) {
+    state.currentStep--;
+    renderStep();
+  }
+}
+
+function nextStep() {
+  if (state.currentStep < STEPS.length - 1) {
+    state.currentStep++;
+    renderStep();
+  } else {
+    runCalculation();
+  }
+}
+
+// ===== CALCULATION ENGINE =====
+function calculatePreview() {
+  const warnings = [];
+  const f = state.form;
+  if (!f.baseSalaryAnnual) warnings.push('Base salary not entered');
+  if (!f.agreementId) warnings.push('No host agreement selected');
+  if (!f.assignmentDays && !f.startDate) warnings.push('Assignment dates or days required');
+  if (!f.employeeName) warnings.push('Employee name not entered');
+  if (f.assignmentAllowance && !f.assignmentAllowanceExpensePortion) {
+    warnings.push('Assignment allowance has no documented expense portion - entire amount counted as remuneration');
+  }
+  return { warnings };
+}
+
+function getExchangeRate(fromCurrency, toCurrency) {
+  if (fromCurrency === toCurrency) return { rate: 1, source: 'Same currency', date: '' };
+  const cd = COUNTRY_DATA[state.country];
+  // Simplified exchange rates for demo
+  const rates = {
+    'GBP_EUR': 1.17, 'EUR_GBP': 1/1.17,
+    'GBP_CHF': 1.11, 'CHF_GBP': 1/1.11,
+    'EUR_CHF': 0.94, 'CHF_EUR': 1/0.94,
+    'USD_EUR': 0.92, 'EUR_USD': 1/0.92,
+    'USD_CHF': 0.87, 'CHF_USD': 1/0.87,
+    'GBP_USD': 1.27, 'USD_GBP': 1/1.27,
+  };
+  const key = `${fromCurrency}_${toCurrency}`;
+  return {
+    rate: rates[key] || 1,
+    source: state.country === 'CH' ? 'ESTV official rate' : 'ECB reference rate',
+    date: '2025-01-01'
+  };
+}
+
+function runCalculation() {
+  const f = state.form;
+  const cd = COUNTRY_DATA[state.country];
+  const agreement = cd.agreements.find(a => a.id === f.agreementId);
+  const hostCurrency = cd.currency;
+
+  // Calculate assignment days
+  let assignmentDays = f.assignmentDays;
+  if (!assignmentDays && f.startDate && f.endDate) {
+    const start = new Date(f.startDate);
+    const end = new Date(f.endDate);
+    assignmentDays = 0;
+    const cur = new Date(start);
+    while (cur <= end) {
+      const dow = cur.getDay();
+      if (dow !== 0 && dow !== 6) assignmentDays++;
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+  if (!assignmentDays) assignmentDays = 1;
+
+  const hoursPerDay = f.scheduledHoursPerWeek / 5;
+  const totalScheduledHours = assignmentDays * hoursPerDay;
+
+  // === HOME REMUNERATION (normalised to hourly) ===
+  const annualWorkingHours = f.homeWeeklyHours * 52;
+  const homeHourlyBase = (f.baseSalaryAnnual || 0) / annualWorkingHours;
+
+  // Include 13th/14th as pro-rated
+  const home13thHourly = (f.bonuses13th || 0) / annualWorkingHours;
+  const home14thHourly = (f.bonuses14th || 0) / annualWorkingHours;
+  const homeHolidayPayHourly = (f.holidayPayRate || 0) / annualWorkingHours;
+  const homeOtherHourly = (f.otherAllowances || 0) / annualWorkingHours;
+
+  // Assignment allowance: remuneration portion only
+  const assignmentAllowanceRem = (f.assignmentAllowance || 0) - (f.assignmentAllowanceExpensePortion || 0);
+  const homeAssignAllowHourly = totalScheduledHours > 0 ? assignmentAllowanceRem / totalScheduledHours : 0;
+
+  const totalHomeHourlyHomeCurrency = homeHourlyBase + home13thHourly + home14thHourly + homeHolidayPayHourly + homeOtherHourly + homeAssignAllowHourly;
+
+  // Convert to host currency
+  const fx = getExchangeRate(f.homeCurrency, hostCurrency);
+  const totalHomeHourlyHostCurrency = totalHomeHourlyHomeCurrency * fx.rate;
+
+  // === HOST ENTITLEMENT ===
+  const hostMinHourly = agreement ? agreement.minHourly : 0;
+
+  // Grade multipliers (simplified demo)
+  const gradeMultiplier = { entry: 1.0, standard: 1.0, senior: 1.10, manager: 1.20 }[f.grade] || 1.0;
+  // Experience supplement (1% per year, capped at 15%)
+  const expMultiplier = 1 + Math.min(f.experience * 0.01, 0.15);
+
+  const adjustedHostHourly = hostMinHourly * gradeMultiplier * expMultiplier;
+
+  // Calculate host entitlement components
+  const hostBaseForPeriod = adjustedHostHourly * totalScheduledHours;
+  const hostOvertimePay = (f.overtimeHours || 0) * adjustedHostHourly * cd.overtimeRate;
+  const hostNightPay = (f.nightHours || 0) * adjustedHostHourly * cd.nightRate;
+  const hostSundayPay = (f.sundayHours || 0) * adjustedHostHourly * cd.sundayRate;
+  const hostHolidayPay = (f.publicHolidayHours || 0) * adjustedHostHourly * cd.holidayRate;
+
+  // 13th/14th month pro-rating for host
+  let host13thPay = 0;
+  let host14thPay = 0;
+  if (state.country === 'ES' && cd.pagas) {
+    // Spain: 2 pagas extraordinarias pro-rated
+    const yearFraction = assignmentDays / cd.workingDays;
+    host13thPay = (adjustedHostHourly * cd.maxWeeklyHours * 52 / 12) * yearFraction;
+    host14thPay = host13thPay;
+  }
+  // France: no statutory 13th month, but some CCNs include it
+  if (state.country === 'FR' && (f.agreementId === 'fr-metallurgy' || f.agreementId === 'fr-syntec')) {
+    const yearFraction = assignmentDays / cd.workingDays;
+    host13thPay = (adjustedHostHourly * cd.maxWeeklyHours * 52 / 12) * yearFraction;
+  }
+  // Switzerland: typically in GAV
+  if (state.country === 'CH' && (f.agreementId === 'ch-gav-bau' || f.agreementId === 'ch-gav-maler')) {
+    const yearFraction = assignmentDays / cd.workingDays;
+    host13thPay = (adjustedHostHourly * cd.maxWeeklyHours * 52 / 12) * yearFraction;
+  }
+
+  // Holiday pay entitlement
+  const annualLeaveProRated = cd.minAnnualLeave * (assignmentDays / cd.workingDays);
+  const hostHolidayPayEntitlement = annualLeaveProRated * hoursPerDay * adjustedHostHourly;
+
+  const totalHostEntitlement = hostBaseForPeriod + hostOvertimePay + hostNightPay + hostSundayPay + hostHolidayPay + host13thPay + host14thPay + hostHolidayPayEntitlement;
+
+  // === COMPARISON ===
+  const totalHomeForPeriod = totalHomeHourlyHostCurrency * totalScheduledHours;
+  const shortfall = totalHostEntitlement - totalHomeForPeriod;
+  const uplift = Math.max(0, shortfall);
+  const upliftPerHour = totalScheduledHours > 0 ? uplift / totalScheduledHours : 0;
+  const upliftPerDay = assignmentDays > 0 ? uplift / assignmentDays : 0;
+
+  // Convert uplift to payroll currency
+  const fxBack = getExchangeRate(hostCurrency, f.homeCurrency);
+  const upliftPayrollCurrency = uplift * fxBack.rate;
+
+  // Applicability check
+  let applicability = 'required';
+  let applicabilityReason = 'The assignment involves productive services in the host country, triggering equal pay comparison obligations.';
+  if (f.assignmentType === 'business_travel' && (f.assignmentPurpose === 'meeting' || f.assignmentPurpose === 'training')) {
+    if (assignmentDays <= 5) {
+      applicability = 'not_triggered';
+      applicabilityReason = 'Short-term business travel for meetings/training without productive service provision does not typically trigger equal pay obligations.';
+    }
+  }
+
+  const result = {
+    applicability,
+    applicabilityReason,
+    country: state.country,
+    countryName: cd.name,
+    legalBasis: cd.legalBasis,
+    agreement: agreement ? agreement.name : 'None selected',
+    agreementId: f.agreementId,
+    effectiveFrom: agreement ? agreement.effectiveFrom : '',
+    hostCurrency,
+    homeCurrency: f.homeCurrency,
+    exchangeRate: fx.rate,
+    exchangeRateSource: fx.source,
+    exchangeRateDate: fx.date,
+    // Home
+    homeHourlyBase,
+    home13thHourly,
+    home14thHourly,
+    homeHolidayPayHourly,
+    homeOtherHourly,
+    homeAssignAllowHourly,
+    totalHomeHourlyHomeCurrency,
+    totalHomeHourlyHostCurrency,
+    totalHomeForPeriod,
+    // Host
+    hostMinHourly,
+    adjustedHostHourly,
+    gradeMultiplier,
+    expMultiplier,
+    hostBaseForPeriod,
+    hostOvertimePay,
+    hostNightPay,
+    hostSundayPay,
+    hostHolidayPay,
+    host13thPay,
+    host14thPay,
+    hostHolidayPayEntitlement,
+    totalHostEntitlement,
+    // Comparison
+    shortfall,
+    uplift,
+    upliftPerHour,
+    upliftPerDay,
+    upliftPayrollCurrency,
+    // Time
+    assignmentDays,
+    totalScheduledHours,
+    hoursPerDay,
+    // Terms
+    terms: cd.terms,
+    timestamp: new Date().toISOString()
+  };
+
+  const saved = saveCurrent(result);
+  result.caseId = saved.id;
+  showResults(result);
+}
+
+function showResults(result) {
+  state.currentResult = result;
+  document.getElementById('dashboardView').classList.add('hidden');
+  document.getElementById('wizardView').classList.add('hidden');
+  document.getElementById('resultsView').classList.remove('hidden');
+
+  const cd = COUNTRY_DATA[result.country];
+  const isUpliftNeeded = result.uplift > 0;
+
+  let html = `
+    <!-- Applicability -->
+    <div class="card mb-4 fade-in">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="text-2xl">${cd.flag}</span>
+        <div>
+          <div class="section-title mb-0">${result.countryName} Equal Pay Assessment</div>
+          <div class="text-xs text-cozm-muted">${result.caseId || ''} &middot; ${new Date(result.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        </div>
+      </div>
+      <div class="p-3 rounded-lg text-sm ${result.applicability === 'required' ? 'bg-blue-50 border border-blue-200 text-blue-800' : 'bg-green-50 border border-green-200 text-green-800'}">
+        <strong>Applicability:</strong> ${result.applicability === 'required' ? 'Equal pay comparison required' : 'Not triggered'}<br>
+        <span class="text-xs">${result.applicabilityReason}</span>
+      </div>
+    </div>
+  `;
+
+  if (result.applicability === 'required') {
+    html += `
+    <!-- Uplift Summary -->
+    <div class="${isUpliftNeeded ? 'uplift-box' : 'card bg-green-50 border-green-200 text-center'} mb-4 fade-in">
+      <div class="text-sm ${isUpliftNeeded ? 'text-white/80' : 'text-green-700'} mb-1">
+        ${isUpliftNeeded ? 'Equal Pay Assignment Allowance Required' : 'No Uplift Required'}
+      </div>
+      <div class="text-3xl font-bold ${isUpliftNeeded ? '' : 'text-green-800'}">
+        ${isUpliftNeeded ? '+' : ''}${formatCurrency(result.uplift, result.hostCurrency)}
+      </div>
+      <div class="text-sm ${isUpliftNeeded ? 'text-white/70' : 'text-green-600'} mt-1">
+        ${isUpliftNeeded ? `(${formatCurrency(result.upliftPayrollCurrency, result.homeCurrency)} in payroll currency)` : 'Home remuneration meets or exceeds host entitlement'}
+      </div>
+      ${isUpliftNeeded ? `
+        <div class="flex justify-center gap-6 mt-3 text-sm text-white/80">
+          <span>${formatCurrency(result.upliftPerHour, result.hostCurrency)}/hr</span>
+          <span>${formatCurrency(result.upliftPerDay, result.hostCurrency)}/day</span>
+          <span>${result.assignmentDays} days</span>
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- Comparison -->
+    <div class="card mb-4 fade-in">
+      <div class="section-title">Component Comparison</div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-cozm-muted border-b">
+              <th class="pb-2">Component</th>
+              <th class="pb-2 text-right">Home (${result.hostCurrency})</th>
+              <th class="pb-2 text-right">Host (${result.hostCurrency})</th>
+              <th class="pb-2 text-right">Difference</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${compRow('Base pay (period)', result.homeHourlyBase * result.exchangeRate * result.totalScheduledHours, result.hostBaseForPeriod)}
+            ${compRow('Overtime supplement', 0, result.hostOvertimePay)}
+            ${compRow('Night supplement', 0, result.hostNightPay)}
+            ${compRow('Sunday supplement', 0, result.hostSundayPay)}
+            ${compRow('Public holiday supplement', 0, result.hostHolidayPay)}
+            ${compRow('13th month (pro-rated)', result.home13thHourly * result.exchangeRate * result.totalScheduledHours, result.host13thPay)}
+            ${compRow('14th month (pro-rated)', result.home14thHourly * result.exchangeRate * result.totalScheduledHours, result.host14thPay)}
+            ${compRow('Holiday pay', result.homeHolidayPayHourly * result.exchangeRate * result.totalScheduledHours, result.hostHolidayPayEntitlement)}
+            ${compRow('Other allowances', result.homeOtherHourly * result.exchangeRate * result.totalScheduledHours, 0)}
+            ${compRow('Assignment allowance (rem.)', result.homeAssignAllowHourly * result.exchangeRate * result.totalScheduledHours, 0)}
+            <tr class="font-bold border-t-2">
+              <td class="pt-2">Total</td>
+              <td class="pt-2 text-right">${formatCurrency(result.totalHomeForPeriod, result.hostCurrency)}</td>
+              <td class="pt-2 text-right">${formatCurrency(result.totalHostEntitlement, result.hostCurrency)}</td>
+              <td class="pt-2 text-right ${result.shortfall > 0 ? 'text-cozm-danger' : 'text-cozm-success'}">${result.shortfall > 0 ? '+' : ''}${formatCurrency(result.shortfall, result.hostCurrency)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Calculation Details -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 fade-in">
+      <div class="card">
+        <div class="section-title text-sm">Hourly Rates</div>
+        <div class="result-row"><span class="text-xs">Home hourly (${result.homeCurrency})</span><span class="text-sm font-semibold">${formatCurrency(result.totalHomeHourlyHomeCurrency, result.homeCurrency)}</span></div>
+        <div class="result-row"><span class="text-xs">Home hourly (${result.hostCurrency})</span><span class="text-sm font-semibold">${formatCurrency(result.totalHomeHourlyHostCurrency, result.hostCurrency)}</span></div>
+        <div class="result-row"><span class="text-xs">Host minimum hourly</span><span class="text-sm font-semibold">${formatCurrency(result.hostMinHourly, result.hostCurrency)}</span></div>
+        <div class="result-row"><span class="text-xs">Host adjusted hourly</span><span class="text-sm font-semibold">${formatCurrency(result.adjustedHostHourly, result.hostCurrency)}</span></div>
+        <div class="result-row"><span class="text-xs">Exchange rate</span><span class="text-sm">${result.exchangeRate.toFixed(4)} (${result.exchangeRateSource})</span></div>
+      </div>
+      <div class="card">
+        <div class="section-title text-sm">Assignment Period</div>
+        <div class="result-row"><span class="text-xs">Working days</span><span class="text-sm font-semibold">${result.assignmentDays}</span></div>
+        <div class="result-row"><span class="text-xs">Scheduled hours</span><span class="text-sm font-semibold">${result.totalScheduledHours.toFixed(1)}</span></div>
+        <div class="result-row"><span class="text-xs">Hours per day</span><span class="text-sm font-semibold">${result.hoursPerDay.toFixed(1)}</span></div>
+        <div class="result-row"><span class="text-xs">Agreement</span><span class="text-sm">${result.agreement}</span></div>
+        <div class="result-row"><span class="text-xs">Effective from</span><span class="text-sm">${result.effectiveFrom}</span></div>
+      </div>
+    </div>
+
+    <!-- Legal Basis & Sources -->
+    <div class="card mb-4 fade-in">
+      <div class="section-title text-sm">Legal Basis & Sources</div>
+      <div class="text-xs text-cozm-fg space-y-1">
+        <div><strong>Legal basis:</strong> ${result.legalBasis}</div>
+        <div><strong>Applicable agreement:</strong> ${result.agreement} (effective ${result.effectiveFrom})</div>
+        <div><strong>Exchange rate:</strong> ${result.exchangeRate.toFixed(4)} ${result.homeCurrency}/${result.hostCurrency} (${result.exchangeRateSource}, ${result.exchangeRateDate})</div>
+        <div><strong>Grade adjustment:</strong> x${result.gradeMultiplier.toFixed(2)} &middot; <strong>Experience:</strong> x${result.expMultiplier.toFixed(2)}</div>
+        <div><strong>Calculated:</strong> ${new Date(result.timestamp).toLocaleString('en-GB')}</div>
+      </div>
+    </div>
+    `;
+  }
+
+  // Employment Terms (always show for assignment letter)
+  if (result.terms) {
+    html += `
+    <div class="card fade-in">
+      <div class="section-title text-sm">${cd.name} Employment Terms (Assignment Letter)</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        ${Object.entries(result.terms).map(([key, val]) => `
+          <div class="result-row">
+            <span class="text-cozm-muted">${formatTermKey(key)}</span>
+            <span class="text-cozm-fg font-medium" style="max-width:60%;text-align:right">${val}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    `;
+  }
+
+  document.getElementById('resultsContent').innerHTML = html;
+}
+
+function compRow(label, home, host) {
+  const diff = host - home;
+  return `
+    <tr class="border-b border-gray-100">
+      <td class="py-1.5 text-xs">${label}</td>
+      <td class="py-1.5 text-right text-xs">${formatCurrency(home, '')}</td>
+      <td class="py-1.5 text-right text-xs">${formatCurrency(host, '')}</td>
+      <td class="py-1.5 text-right text-xs ${diff > 0 ? 'text-cozm-danger' : diff < 0 ? 'text-cozm-success' : ''}">${diff !== 0 ? (diff > 0 ? '+' : '') + formatCurrency(diff, '') : '-'}</td>
+    </tr>
+  `;
+}
+
+function formatTermKey(key) {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+}
+
+function formatCurrency(amount, currency) {
+  if (amount === undefined || amount === null || amount === '' || isNaN(amount)) return '-';
+  const num = parseFloat(amount);
+  const formatted = num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return currency ? `${currency} ${formatted}` : formatted;
+}
+
+function resetApp() {
+  state.form = {};
+  state.currentStep = 0;
+  state.country = null;
+  state.currentResult = null;
+  showDashboard();
+}
+
+// ===== PDF GENERATION =====
+function generatePayrollPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const r = state.currentResult;
+  const f = state.form;
+  if (!r) return;
+
+  const pageW = 210;
+  const margin = 20;
+  const contentW = pageW - 2 * margin;
+  let y = 20;
+
+  // Header
+  try { doc.addImage(LOGO_B64, 'PNG', margin, y, 40, 18); } catch(e) {}
+  doc.setFontSize(8);
+  doc.setTextColor(93, 111, 117);
+  doc.text('CONFIDENTIAL', pageW - margin, y + 5, { align: 'right' });
+  doc.text(r.caseId || '', pageW - margin, y + 10, { align: 'right' });
+  y += 28;
+
+  // Title
+  doc.setFontSize(18);
+  doc.setTextColor(29, 54, 66);
+  doc.text('Payroll Instructions', margin, y);
+  y += 6;
+  doc.setFontSize(10);
+  doc.setTextColor(68, 145, 156);
+  doc.text(`Equal Pay Assignment Allowance - ${r.countryName}`, margin, y);
+  y += 10;
+
+  // Line
+  doc.setDrawColor(68, 145, 156);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  // Details
+  doc.setFontSize(9);
+  doc.setTextColor(29, 54, 66);
+  const details = [
+    ['Employee:', f.employeeName || '-'],
+    ['Employer:', f.homeEmployer || '-'],
+    ['Host Country:', r.countryName],
+    ['Worksite:', f.worksite || '-'],
+    ['Period:', `${f.startDate || '-'} to ${f.endDate || '-'} (${r.assignmentDays} working days)`],
+    ['Agreement:', r.agreement],
+    ['Effective Date:', r.effectiveFrom],
+  ];
+  details.forEach(([label, val]) => {
+    doc.setFont(undefined, 'bold');
+    doc.text(label, margin, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(val, margin + 35, y);
+    y += 5;
+  });
+  y += 5;
+
+  // Section: Home Remuneration
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(68, 145, 156);
+  doc.text('Home Remuneration Counted', margin, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(29, 54, 66);
+
+  const homeComponents = [
+    ['Base salary (hourly)', formatCurrency(r.homeHourlyBase, r.homeCurrency)],
+    ['13th month (hourly)', formatCurrency(r.home13thHourly, r.homeCurrency)],
+    ['14th month (hourly)', formatCurrency(r.home14thHourly, r.homeCurrency)],
+    ['Holiday pay (hourly)', formatCurrency(r.homeHolidayPayHourly, r.homeCurrency)],
+    ['Other allowances (hourly)', formatCurrency(r.homeOtherHourly, r.homeCurrency)],
+    ['Assignment allowance rem. (hourly)', formatCurrency(r.homeAssignAllowHourly, r.homeCurrency)],
+    ['Total home hourly', formatCurrency(r.totalHomeHourlyHomeCurrency, r.homeCurrency)],
+    ['Converted to host currency', formatCurrency(r.totalHomeHourlyHostCurrency, r.hostCurrency)],
+    ['Total for period', formatCurrency(r.totalHomeForPeriod, r.hostCurrency)],
+  ];
+  homeComponents.forEach(([label, val]) => {
+    doc.setFont(undefined, label.startsWith('Total') ? 'bold' : 'normal');
+    doc.text(label, margin + 2, y);
+    doc.text(val, pageW - margin, y, { align: 'right' });
+    y += 4.5;
+  });
+  y += 5;
+
+  // Section: Host Entitlement
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(68, 145, 156);
+  doc.text('Host Entitlement', margin, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(29, 54, 66);
+
+  const hostComponents = [
+    ['Base pay (period)', formatCurrency(r.hostBaseForPeriod, r.hostCurrency)],
+    ['Overtime supplement', formatCurrency(r.hostOvertimePay, r.hostCurrency)],
+    ['Night supplement', formatCurrency(r.hostNightPay, r.hostCurrency)],
+    ['Sunday supplement', formatCurrency(r.hostSundayPay, r.hostCurrency)],
+    ['Public holiday supplement', formatCurrency(r.hostHolidayPay, r.hostCurrency)],
+    ['13th month (pro-rated)', formatCurrency(r.host13thPay, r.hostCurrency)],
+    ['14th month (pro-rated)', formatCurrency(r.host14thPay, r.hostCurrency)],
+    ['Holiday pay entitlement', formatCurrency(r.hostHolidayPayEntitlement, r.hostCurrency)],
+    ['Total host entitlement', formatCurrency(r.totalHostEntitlement, r.hostCurrency)],
+  ];
+  hostComponents.forEach(([label, val]) => {
+    doc.setFont(undefined, label.startsWith('Total') ? 'bold' : 'normal');
+    doc.text(label, margin + 2, y);
+    doc.text(val, pageW - margin, y, { align: 'right' });
+    y += 4.5;
+  });
+  y += 5;
+
+  // Check if we need a new page
+  if (y > 230) { doc.addPage(); y = 20; }
+
+  // Uplift Box
+  doc.setFillColor(68, 145, 156);
+  doc.roundedRect(margin, y, contentW, 30, 3, 3, 'F');
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text('REQUIRED UPLIFT', margin + contentW / 2, y + 8, { align: 'center' });
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text(`${formatCurrency(r.uplift, r.hostCurrency)}`, margin + contentW / 2, y + 17, { align: 'center' });
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.text(`(${formatCurrency(r.upliftPayrollCurrency, r.homeCurrency)} in payroll currency)`, margin + contentW / 2, y + 24, { align: 'center' });
+  y += 38;
+
+  // Payslip Instructions
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(68, 145, 156);
+  doc.text('Payslip Instructions', margin, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(29, 54, 66);
+  doc.setFont(undefined, 'normal');
+
+  const instructions = [
+    `Payslip label: Equal Pay Assignment Allowance - ${r.countryName}`,
+    `Gross amount: ${formatCurrency(r.upliftPayrollCurrency, r.homeCurrency)} per assignment period`,
+    `Per hour: ${formatCurrency(r.upliftPerHour, r.hostCurrency)} (${r.hostCurrency})`,
+    `Per day: ${formatCurrency(r.upliftPerDay, r.hostCurrency)} (${r.hostCurrency})`,
+    r.uplift > 0 ? 'Payment: Recurring, each payroll period during the assignment' : 'No uplift payment required',
+    `Exchange rate: ${r.exchangeRate.toFixed(4)} ${r.homeCurrency}/${r.hostCurrency} (${r.exchangeRateSource}, ${r.exchangeRateDate})`,
+    'Expense reimbursement must remain separate and must not reduce the uplift.',
+    'If actual hours differ from planned, reconcile and adjust in the following pay period.',
+  ];
+  instructions.forEach(instr => {
+    const lines = doc.splitTextToSize(`- ${instr}`, contentW - 4);
+    lines.forEach(line => {
+      if (y > 275) { doc.addPage(); y = 20; }
+      doc.text(line, margin + 2, y);
+      y += 4.5;
+    });
+  });
+
+  // Footer
+  y = 280;
+  doc.setFontSize(7);
+  doc.setTextColor(93, 111, 117);
+  doc.text(`Generated by Cozm Equal Pay | ${new Date(r.timestamp).toLocaleString('en-GB')} | ${r.caseId || ''}`, margin, y);
+  doc.text('This document does not constitute tax or social security advice.', margin, y + 3.5);
+
+  doc.save(`Payroll-Instructions-${r.countryName}-${r.caseId || 'draft'}.pdf`);
+}
+
+function generateLetterPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const r = state.currentResult;
+  const f = state.form;
+  if (!r) return;
+
+  const pageW = 210;
+  const margin = 20;
+  const contentW = pageW - 2 * margin;
+  let y = 20;
+
+  // Header
+  try { doc.addImage(LOGO_B64, 'PNG', margin, y, 40, 18); } catch(e) {}
+  doc.setFontSize(8);
+  doc.setTextColor(93, 111, 117);
+  doc.text('CONFIDENTIAL', pageW - margin, y + 5, { align: 'right' });
+  y += 28;
+
+  // Title
+  doc.setFontSize(16);
+  doc.setTextColor(29, 54, 66);
+  doc.text('Assignment Letter', margin, y);
+  y += 6;
+  doc.setFontSize(10);
+  doc.setTextColor(68, 145, 156);
+  doc.text(`International Assignment to ${r.countryName}`, margin, y);
+  y += 4;
+  doc.setFontSize(8);
+  doc.setTextColor(93, 111, 117);
+  doc.text(`${r.caseId || ''} | ${new Date(r.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`, margin, y);
+  y += 8;
+
+  doc.setDrawColor(68, 145, 156);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  function addSection(title, content) {
+    if (y > 255) { doc.addPage(); y = 20; }
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(68, 145, 156);
+    doc.text(title, margin, y);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(29, 54, 66);
+    const lines = doc.splitTextToSize(content, contentW);
+    lines.forEach(line => {
+      if (y > 275) { doc.addPage(); y = 20; }
+      doc.text(line, margin, y);
+      y += 4.2;
+    });
+    y += 3;
+  }
+
+  // Letter content
+  addSection('1. Parties',
+    `This assignment letter confirms the terms of the international assignment of ${f.employeeName || '[Employee]'} ("the Employee"), employed by ${f.homeEmployer || '[Employer]'} ("the Employer"), to ${r.countryName}. The Employee's existing contract of employment remains in force throughout the assignment.`
+  );
+
+  addSection('2. Assignment Details',
+    `Purpose: ${f.assignmentPurpose || 'Service provision'}\nStart date: ${f.startDate || '[Date]'}\nEnd date: ${f.endDate || '[Date]'}\nWorksite: ${f.worksite || '[Location]'}\nThe Employee shall remain under the direction of the Employer. This assignment does not transfer the employment relationship to any host entity.`
+  );
+
+  addSection('3. Duties and Classification',
+    `Job title: ${f.jobTitle || '[Title]'}\nGrade: ${f.grade}\nThe Employee shall perform their normal duties as required at the assignment location. The applicable host-country classification is determined by the ${r.agreement}.`
+  );
+
+  addSection('4. Remuneration',
+    `The Employee's home salary of ${formatCurrency(f.baseSalaryAnnual, f.homeCurrency)} per annum shall continue. ${r.uplift > 0 ? `An Equal Pay Assignment Allowance of ${formatCurrency(r.upliftPayrollCurrency, f.homeCurrency)} (equivalent to ${formatCurrency(r.uplift, r.hostCurrency)}) shall be paid for the assignment period to ensure compliance with host-country minimum remuneration requirements under ${r.legalBasis}. This allowance is calculated as a separate gross payment and shall appear on the payslip as "Equal Pay Assignment Allowance - ${r.countryName}".` : 'The Employee\'s home remuneration meets or exceeds the host-country entitlement; no equal pay uplift is required.'}\n\nExpense reimbursements for travel, accommodation and meals shall remain separate from remuneration and shall not reduce any equal pay entitlement.`
+  );
+
+  addSection('5. Working Time',
+    `Normal working hours: ${f.scheduledHoursPerWeek} hours per week.\nMaximum daily hours: ${r.terms.maxDailyHours}.\nMinimum daily rest: ${r.terms.minDailyRest}.\nMinimum weekly rest: ${r.terms.minWeeklyRest}.\nBreaks: ${r.terms.breaks}.\nOvertime shall be approved in advance and compensated at the rates prescribed by the applicable agreement or statute.`
+  );
+
+  addSection('6. Night, Weekend and Public Holiday Work',
+    `Night work: ${r.terms.nightWork}.\nSunday/weekend work: ${r.terms.sundayWork}.\nWork on public holidays shall be compensated in accordance with the applicable agreement.`
+  );
+
+  addSection('7. Leave Entitlements',
+    `Annual leave: The Employee is entitled to a minimum of ${COUNTRY_DATA[r.country].minAnnualLeave} working days of paid annual leave per year (pro-rated for the assignment period).\nPublic holidays: ${COUNTRY_DATA[r.country].publicHolidays} public holidays per year in ${r.countryName}.\nSickness: ${r.terms.sickLeave}.`
+  );
+
+  addSection('8. Family-Related Leave',
+    `Maternity leave: ${r.terms.maternityLeave}.\nPaternity leave: ${r.terms.paternityLeave}.\nThe Employee shall be entitled to family-related leave in accordance with the more favourable of the home or host-country provisions.`
+  );
+
+  addSection('9. Health, Safety and Equal Treatment',
+    `The Employee shall comply with all host-country health and safety regulations, site rules and required training. The Employer shall provide any necessary personal protective equipment.\nEqual treatment: ${r.terms.equalTreatment}.`
+  );
+
+  addSection('10. Social Security and Immigration',
+    `The Employer shall arrange for the appropriate social security coordination document (A1 certificate or equivalent) before the assignment commences. The Employee must hold valid work authorisation for ${r.countryName} throughout the assignment. The Employer shall file any required posting notification with the host-country authorities.`
+  );
+
+  addSection('11. Tax',
+    `The Employee shall cooperate with the Employer on tax-compliance obligations arising from the assignment. This letter does not constitute tax advice and does not determine the Employee's tax residence or liability.`
+  );
+
+  addSection('12. Travel, Accommodation and Expenses',
+    `The Employer shall provide or reimburse reasonable travel, accommodation, meal and local transport expenses in accordance with the company policy. Expense reimbursements are separate from remuneration.`
+  );
+
+  addSection('13. Confidentiality and Data Protection',
+    `The Employee shall maintain confidentiality of proprietary information. Personal data shall be processed in accordance with applicable data protection legislation, including the GDPR where applicable.`
+  );
+
+  addSection('14. Early Termination and Recall',
+    `The Employer may terminate or curtail the assignment with reasonable notice. The Employee shall be entitled to repatriation assistance. Any equal pay allowance shall be adjusted pro rata.`
+  );
+
+  addSection('15. Governing Law',
+    `This assignment letter is governed by the law of the home country, subject to the mandatory protections of ${r.countryName} law that are more favourable to the Employee, as required by ${r.legalBasis}.`
+  );
+
+  // Signature block
+  if (y > 240) { doc.addPage(); y = 20; }
+  y += 10;
+  doc.setFontSize(9);
+  doc.setTextColor(29, 54, 66);
+  doc.text('Signed for and on behalf of the Employer:', margin, y);
+  y += 15;
+  doc.line(margin, y, margin + 60, y);
+  doc.text('Name:', margin, y + 5);
+  doc.text('Date:', margin, y + 10);
+  y += 20;
+  doc.text('Signed by the Employee:', margin, y);
+  y += 15;
+  doc.line(margin, y, margin + 60, y);
+  doc.text('Name:', margin, y + 5);
+  doc.text('Date:', margin, y + 10);
+
+  // Footer on last page
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(93, 111, 117);
+    doc.text(`Generated by Cozm Equal Pay | ${r.caseId || ''} | Page ${i} of ${pageCount}`, margin, 290);
+  }
+
+  doc.save(`Assignment-Letter-${r.countryName}-${r.caseId || 'draft'}.pdf`);
+}
+</script>
+
+</body>
+</html>
